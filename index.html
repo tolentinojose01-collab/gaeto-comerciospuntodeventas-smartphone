@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>SmartPOS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+tailwind.config={theme:{extend:{fontFamily:{sans:['Space Grotesk','sans-serif'],mono:['JetBrains Mono','monospace']}}}}
+</script>
+<style>
+:root{
+  --bg:#0a0a0a;--bg2:#111;--bg3:#141414;--bg4:#1a1a1a;--bg5:#222;--bg6:#2a2a2a;
+  --tx:#fff;--tx2:#ccc;--tx3:#888;--tx4:#555;--tx5:#444;
+  --ac:#00c853;--ac2:#00e676;--ac3:#69f0ae;--acbg:rgba(0,200,83,0.15);
+  --dn:#ff5252;--dnbg:rgba(255,82,82,0.15);--wn:#ffab40;--wnbg:rgba(255,171,64,0.15);
+  --bl:#42a5f5;--blbg:rgba(66,165,245,0.15);--yw:#ffd740;--ywbg:rgba(255,215,64,0.15);
+  --pp:#ab47bc;--ppbg:rgba(171,71,188,0.15);
+  --card:#141414;--border:#2a2a2a;--inp-bg:#1a1a1a;--inp-border:#333;
+  --shadow:0 2px 8px rgba(0,0,0,0.4);
+}
+.light{
+  --bg:#f0f2f5;--bg2:#ffffff;--bg3:#ffffff;--bg4:#f7f8fa;--bg5:#eaecf0;--bg6:#dde0e4;
+  --tx:#111;--tx2:#333;--tx3:#666;--tx4:#888;--tx5:#aaa;
+  --ac:#00a843;--ac2:#00c853;--ac3:#2e7d32;--acbg:rgba(0,168,67,0.1);
+  --dn:#d32f2f;--dnbg:rgba(211,47,47,0.1);--wn:#ef6c00;--wnbg:rgba(239,108,0,0.1);
+  --bl:#1565c0;--blbg:rgba(21,101,192,0.1);--yw:#f9a825;--ywbg:rgba(249,168,37,0.1);
+  --pp:#8e24aa;--ppbg:rgba(142,36,170,0.1);
+  --card:#ffffff;--border:#dde0e4;--inp-bg:#f7f8fa;--inp-border:#ccd0d5;
+  --shadow:0 2px 8px rgba(0,0,0,0.08);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--bg6);border-radius:4px}
+body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--tx);overflow:hidden;height:100dvh;width:100vw;transition:background .3s,color .3s}
+input,select,textarea{font-family:inherit}
+.page{display:none;height:100%;overflow-y:auto;padding:14px 14px 88px 14px;animation:fadeIn .2s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 0 0 var(--acbg)}50%{box-shadow:0 0 0 12px transparent}}
+.btn{transition:all .15s ease;cursor:pointer}.btn:active{transform:scale(.96)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:var(--shadow);transition:background .3s,border-color .3s}
+.inp{background:var(--inp-bg);border:1px solid var(--inp-border);border-radius:8px;padding:10px 12px;color:var(--tx);width:100%;font-size:14px;outline:none;transition:all .2s}
+.inp:focus{border-color:var(--ac);box-shadow:0 0 0 2px var(--acbg)}
+.inp::placeholder{color:var(--tx4)}
+select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9999;padding:12px 22px;border-radius:10px;font-size:14px;font-weight:600;animation:fadeIn .3s;pointer-events:none;max-width:90vw;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,0.2)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .15s}
+.modal-content{background:var(--bg3);border-radius:16px 16px 0 0;width:100%;max-height:88dvh;overflow-y:auto;animation:slideUp .25s ease;padding:20px;transition:background .3s}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.nav-item{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--tx4);transition:color .2s}
+.nav-item.active{color:var(--ac)}
+.nav-item i{font-size:20px}
+.theme-toggle{width:44px;height:24px;border-radius:12px;background:var(--bg6);position:relative;cursor:pointer;transition:background .3s;border:none}
+.theme-toggle::after{content:'';position:absolute;width:20px;height:20px;border-radius:10px;background:var(--tx);top:2px;left:2px;transition:transform .3s,background .3s}
+.light .theme-toggle{background:var(--acbg)}.light .theme-toggle::after{transform:translateX(20px);background:var(--ac)}
+.qty-circle{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;cursor:pointer;border:none;transition:all .15s;user-select:none}
+.qty-circle:active{transform:scale(.88)}
+.confirm-btn{animation:pulseGlow 2s infinite}
+@media print{body *{visibility:hidden}#printArea,#printArea *{visibility:visible}#printArea{position:absolute;left:0;top:0;width:80mm;font-size:10px;font-family:'JetBrains Mono',monospace;color:#000;background:#fff}}
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="flex flex-col items-center justify-center h-full px-6" style="background:var(--bg)">
+  <div class="text-center mb-8">
+    <div class="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4" style="background:var(--acbg)"><i class="fas fa-store text-3xl" style="color:var(--ac)"></i></div>
+    <h1 class="text-3xl font-bold tracking-tight" style="color:var(--tx)">SmartPOS</h1>
+    <p class="text-sm mt-1" style="color:var(--tx3)">Sistema de Punto de Venta</p>
+  </div>
+  <div class="w-full max-w-xs">
+    <label class="text-xs mb-2 block" style="color:var(--tx3)">Ingresa tu PIN de acceso</label>
+    <input id="pinInput" type="password" maxlength="6" class="inp text-center text-2xl tracking-[.5em] font-mono mb-4" placeholder="------" inputmode="numeric">
+    <button onclick="App.login()" class="btn w-full py-3 font-bold rounded-xl text-base" style="background:var(--ac);color:#fff"><i class="fas fa-lock-open mr-2"></i>Acceder</button>
+    <p id="pinError" class="text-xs text-center mt-3 hidden" style="color:var(--dn)">PIN incorrecto</p>
+  </div>
+  <div class="flex items-center gap-3 mt-6"><i class="fas fa-moon text-sm" style="color:var(--tx4)"></i><button class="theme-toggle" onclick="App.toggleTheme()"></button><i class="fas fa-sun text-sm" style="color:var(--tx4)"></i></div>
+</div>
+
+<div id="appShell" class="hidden h-full flex flex-col">
+  <header class="flex items-center justify-between px-4 py-3 flex-shrink-0" style="background:var(--bg2);border-bottom:1px solid var(--border)">
+    <div class="flex items-center gap-3"><i class="fas fa-store" style="color:var(--ac)"></i><span class="font-bold text-lg" id="headerTitle" style="color:var(--tx)">Punto de Venta</span></div>
+    <div class="flex items-center gap-3"><button class="theme-toggle" onclick="App.toggleTheme()"></button><button onclick="App.togglePrinter()" id="printerBtn" style="color:var(--tx4)"><i class="fas fa-bluetooth-b"></i></button><button onclick="App.logout()" style="color:var(--tx4)"><i class="fas fa-sign-out-alt"></i></button></div>
+  </header>
+  <main id="appContent" class="flex-1 overflow-hidden relative" style="background:var(--bg)"></main>
+  <nav class="flex items-center justify-around py-2 flex-shrink-0" style="background:var(--bg2);border-top:1px solid var(--border)">
+    <button class="nav-item active" onclick="App.navigate('pos')"><i class="fas fa-cash-register"></i><span>Vender</span></button>
+    <button class="nav-item" onclick="App.navigate('products')"><i class="fas fa-box"></i><span>Productos</span></button>
+    <button class="nav-item" onclick="App.navigate('inventory')"><i class="fas fa-warehouse"></i><span>Inventario</span></button>
+    <button class="nav-item" onclick="App.navigate('labels')"><i class="fas fa-tags"></i><span>Etiquetas</span></button>
+    <button class="nav-item" onclick="App.navigate('menu')"><i class="fas fa-th"></i><span>Más</span></button>
+  </nav>
+</div>
+
+<div id="scannerModal" class="hidden modal-overlay" onclick="App.closeScanner(event)"><div class="modal-content" onclick="event.stopPropagation()"><div class="flex items-center justify-between mb-4"><h3 class="font-bold text-lg" style="color:var(--tx)">Escanear Código</h3><button onclick="App.closeScanner()" style="color:var(--tx4)" class="text-xl"><i class="fas fa-times"></i></button></div><div id="scannerReader" class="w-full rounded-xl overflow-hidden" style="min-height:250px;background:var(--bg)"></div><p class="text-center text-xs mt-3" style="color:var(--tx3)">Apunta la cámara al código de barras</p></div></div>
+<div id="genericModal" class="hidden modal-overlay" onclick="App.closeModal()"><div class="modal-content" onclick="event.stopPropagation()" id="modalBody"></div></div>
+<div id="toastEl" class="toast hidden"></div>
+<div id="printArea" class="hidden"></div>
+
+<script>
+const App={
+  db:null,currentPage:'pos',cart:[],scannerInstance:null,scannerCallback:null,
+  printerDevice:null,printerCharacteristic:null,charts:{},ownerVerified:false,
+  // Variable para el modal de cantidad
+  _pendingProductId:null,
+
+  defaultDB(){return{pin:'1234',businessName:'Mi Negocio',suppliers:[],categories:['Abarrotes','Bebidas','Lácteos','Carnes','Frutas y Verduras','Limpieza','Papelería','Otros'],products:[],sales:[],shrinkage:[],closings:[],skuCounters:{},ticketCounter:1,ownerPin:'0000',theme:'dark'}},
+  save(){localStorage.setItem('smartpos_db',JSON.stringify(this.db))},
+  load(){const d=localStorage.getItem('smartpos_db');this.db=d?JSON.parse(d):this.defaultDB();['ownerPin','shrinkage','skuCounters','theme','closings'].forEach(k=>{if(this.db[k]===undefined){this.db[k]=this.defaultDB()[k]}})},
+
+  toggleTheme(){document.documentElement.classList.toggle('light');this.db.theme=document.documentElement.classList.contains('light')?'light':'dark';this.save()},
+  applyTheme(){if(this.db.theme==='light')document.documentElement.classList.add('light');else document.documentElement.classList.remove('light')},
+
+  login(){const pin=document.getElementById('pinInput').value;if(pin===this.db.pin){document.getElementById('loginScreen').classList.add('hidden');document.getElementById('appShell').classList.remove('hidden');this.navigate('pos')}else{const e=document.getElementById('pinError');e.classList.remove('hidden');setTimeout(()=>e.classList.add('hidden'),2000)}},
+  logout(){document.getElementById('appShell').classList.add('hidden');document.getElementById('loginScreen').classList.remove('hidden');document.getElementById('pinInput').value='';this.ownerVerified=false;this.cart=[]},
+
+  navigate(page){
+    this.currentPage=page;Object.values(this.charts).forEach(c=>c.destroy());this.charts={};
+    document.querySelectorAll('.nav-item').forEach((b,i)=>{const p=['pos','products','inventory','labels','menu'];b.classList.toggle('active',p[i]===page)});
+    const titles={pos:'Punto de Venta',products:'Productos',inventory:'Inventario',labels:'Etiquetas',menu:'Más Opciones',suppliers:'Proveedores',orders:'Pedidos Sugeridos',preinventory:'Pre-Inventario',owner:'Modo Dueño',shrinkage:'Mermas',history:'Histórico Ventas'};
+    document.getElementById('headerTitle').textContent=titles[page]||'SmartPOS';
+    const content=document.getElementById('appContent');
+    const fn=this['render_'+page];content.innerHTML=`<div class="page active">${fn?fn.call(this):''}</div>`;
+    const sf=this['setup_'+page];if(sf)sf.call(this);
+  },
+
+  genId(){return Date.now().toString(36)+'_'+Math.random().toString(36).substr(2,5)},
+  genSKU(cat){const pf={Abarrotes:'ABA',Bebidas:'BEB','Lácteos':'LAC',Carnes:'CAR','Frutas y Verduras':'FRU',Limpieza:'LIM',Papelería:'PAP',Otros:'OTR'};let p=pf[cat]||'OTR';if(!this.db.skuCounters[p])this.db.skuCounters[p]=0;this.db.skuCounters[p]++;this.save();return p+'-'+String(this.db.skuCounters[p]).padStart(4,'0')},
+  fmt(n){return '$'+Number(n||0).toFixed(2)},
+  fmtDate(d){if(!d)return'';const dt=new Date(d);return dt.toLocaleDateString('es-MX')+' '+dt.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})},
+  fmtDateShort(d){if(!d)return'';return new Date(d).toLocaleDateString('es-MX')},
+  toast(msg,type='success'){const el=document.getElementById('toastEl');el.textContent=msg;el.style.background=type==='error'?'var(--dn)':type==='warning'?'var(--wn)':'var(--ac)';el.style.color=type==='error'?'#fff':'#000';el.classList.remove('hidden');setTimeout(()=>el.classList.add('hidden'),2500)},
+  getSupplier(id){return this.db.suppliers.find(s=>s.id===id)},
+  isLight(){return document.documentElement.classList.contains('light')},
+  cc(){const l=this.isLight();return{grid:l?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.06)',text:l?'#666':'#888',ac:l?'#00a843':'#00e676',acBg:l?'rgba(0,168,67,0.1)':'rgba(0,230,118,0.1)',dn:l?'rgba(211,47,47,0.7)':'rgba(255,82,82,0.7)',wn:l?'rgba(239,108,0,0.7)':'rgba(255,171,64,0.7)',bl:l?'rgba(21,101,192,0.7)':'rgba(66,165,245,0.7)',yw:l?'rgba(249,168,37,0.7)':'rgba(255,215,64,0.7)',pp:l?'rgba(142,36,170,0.7)':'rgba(171,71,188,0.7)'}},
+  getSaleCost(sale){return sale.items.reduce((ss,it)=>{const p=this.db.products.find(pr=>pr.id===it.productId);return ss+(p?p.purchasePrice*it.quantity:0)},0)},
+
+  // ESCÁNER
+  openScanner(cb){this.scannerCallback=cb;document.getElementById('scannerModal').classList.remove('hidden');this.startScanner()},
+  startScanner(){if(this.scannerInstance){try{this.scannerInstance.clear()}catch(e){}}this.scannerInstance=new Html5Qrcode("scannerReader");this.scannerInstance.start({facingMode:"environment"},{fps:10,qrbox:{width:250,height:100},formatsSupported:[Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.CODE_39,Html5QrcodeSupportedFormats.QR_CODE]},(text)=>{this.scannerCallback?.(text);this.closeScanner()},()=>{}).catch(e=>console.log(e))},
+  closeScanner(e){if(e&&e.target!==e.currentTarget)return;if(this.scannerInstance){try{this.scannerInstance.stop().then(()=>this.scannerInstance.clear())}catch(e){}}document.getElementById('scannerModal').classList.add('hidden')},
+  closeModal(){document.getElementById('genericModal').classList.add('hidden')},
+  openModal(html){document.getElementById('modalBody').innerHTML=html;document.getElementById('genericModal').classList.remove('hidden')},
+
+  // IMPRESORA
+  async togglePrinter(){if(this.printerCharacteristic){this.printerCharacteristic=null;this.printerDevice=null;document.getElementById('printerBtn').style.color='var(--tx4)';this.toast('Impresora desconectada','warning');return}try{const device=await navigator.bluetooth.requestDevice({filters:[{services:['0000ff00-0000-1000-8000-00805f9b34fb']}],optionalServices:['0000ff00-0000-1000-8000-00805f9b34fb','000018f0-0000-1000-8000-00805f9b34fb']});const server=await device.gatt.connect();let service;try{service=await server.getPrimaryService('0000ff00-0000-1000-8000-00805f9b34fb')}catch(e){service=await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb')}const chars=await service.getCharacteristics();this.printerCharacteristic=chars.find(c=>c.properties.write||c.properties.writeWithoutResponse)||chars[0];this.printerDevice=device;document.getElementById('printerBtn').style.color='var(--ac)';this.toast('Impresora conectada')}catch(e){this.toast('No se pudo conectar','error')}},
+  async printESCPOS(data){if(!this.printerCharacteristic){return false}try{const enc=new TextEncoder();const b=enc.encode(data);for(let i=0;i<b.length;i+=100){await this.printerCharacteristic.writeValue(b.slice(i,i+100));await new Promise(r=>setTimeout(r,50))}return true}catch(e){return false}},
+  escInit(){return'\x1B\x40'},escCenter(){return'\x1B\x61\x01'},escLeft(){return'\x1B\x61\x00'},escBold(on){return on?'\x1B\x45\x01':'\x1B\x45\x00'},escDouble(on){return on?'\x1D\x21\x11':'\x1D\x21\x00'},escFeed(n){return'\x0A'.repeat(n)},escCut(){return'\x1D\x56\x00'},
+  printTicket(sale){const items=sale.items.map(it=>it.productName.substring(0,18).padEnd(18)+String(it.quantity).padStart(3)+this.fmt(it.total).padStart(10)).join('\n');const cmd=this.escInit()+this.escCenter()+this.escBold(true)+this.escDouble(true)+this.db.businessName+'\n'+this.escDouble(false)+this.escBold(false)+this.escCenter()+'Ticket: '+sale.ticketNumber+'\n'+this.escLeft()+this.fmtDate(sale.date)+'\n'+'-'.repeat(30)+'\n'+items+'\n'+'-'.repeat(30)+'\n'+this.escBold(true)+'TOTAL:'+this.fmt(sale.total).padStart(24)+'\n'+this.escBold(false)+'-'.repeat(30)+'\n'+this.escCenter()+'Gracias por su compra\n'+this.escFeed(3)+this.escCut();this.printESCPOS(cmd)},
+  printLabel(product){const cmd=this.escInit()+this.escCenter()+this.escBold(true)+this.escDouble(true)+product.name.substring(0,16)+'\n'+this.escDouble(false)+this.escBold(false)+this.escCenter()+'SKU: '+product.sku+'\n'+this.escBold(true)+this.escDouble(true)+this.fmt(product.publicPrice)+'\n'+this.escDouble(false)+this.escBold(false)+this.escFeed(2)+this.escCut();this.printESCPOS(cmd)},
+  browserPrint(html){const a=document.getElementById('printArea');a.innerHTML=html;a.classList.remove('hidden');setTimeout(()=>{window.print();a.classList.add('hidden')},200)},
+
+  // ============================================================
+  //   PUNTO DE VENTA - Con modal de CANTIDAD
+  // ============================================================
+  render_pos(){
+    const cartItems=this.cart.map((it,i)=>{
+      return `
+      <div class="flex items-center gap-2 py-3 ${i>0?'border-t':''}" style="border-color:var(--border)">
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-bold truncate" style="color:var(--tx)">${it.productName}</p>
+          <p class="text-xs" style="color:var(--tx3)">${this.fmt(it.unitPrice)} c/u</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="App.cartChangeQty(${i},-1)" class="qty-circle" style="width:36px;height:36px;font-size:18px;background:var(--dnbg);color:var(--dn)">-</button>
+          <span class="font-mono font-bold text-lg w-8 text-center" style="color:var(--tx)">${it.quantity}</span>
+          <button onclick="App.cartChangeQty(${i},1)" class="qty-circle" style="width:36px;height:36px;font-size:18px;background:var(--acbg);color:var(--ac)">+</button>
+        </div>
+        <p class="font-bold font-mono w-20 text-right" style="color:var(--ac)">${this.fmt(it.total)}</p>
+        <button onclick="App.removeCartItem(${i})" class="p-1 ml-1" style="color:var(--dn)"><i class="fas fa-times"></i></button>
+      </div>`;
+    }).join('');
+    const total=this.cart.reduce((s,it)=>s+it.total,0);
+    const totalItems=this.cart.reduce((s,it)=>s+it.quantity,0);
+    return `
+    <div class="space-y-4">
+      <div class="flex gap-2">
+        <div class="flex-1 relative">
+          <input id="posSearch" class="inp pr-10" placeholder="Buscar producto o escanear...">
+          <button onclick="App.openScanner(code=>App.showQtyModalByCode(code))" class="absolute right-2 top-1/2 -translate-y-1/2" style="color:var(--ac)"><i class="fas fa-barcode text-lg"></i></button>
+        </div>
+      </div>
+      <div id="posResults" class="hidden card max-h-48 overflow-y-auto"></div>
+      <div class="card">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-bold text-sm" style="color:var(--tx3)"><i class="fas fa-shopping-cart mr-1"></i>CARRITO</h3>
+          <span class="badge" style="background:var(--acbg);color:var(--ac)">${totalItems} art.</span>
+        </div>
+        ${this.cart.length?cartItems:`<p class="text-center py-8 text-sm" style="color:var(--tx4)">Carrito vacío. Busca o escanea productos.</p>`}
+      </div>
+      ${this.cart.length?`
+      <div class="card" style="border-color:var(--ac);background:var(--acbg)">
+        <div class="flex items-center justify-between">
+          <span class="text-lg font-bold" style="color:var(--tx)">TOTAL</span>
+          <span class="text-2xl font-bold font-mono" style="color:var(--ac)">${this.fmt(total)}</span>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <button onclick="App.showConfirmSale()" class="btn confirm-btn py-3 font-bold rounded-xl text-base" style="background:var(--ac);color:#fff">
+          <i class="fas fa-check-circle mr-2"></i>Cobrar
+        </button>
+        <button onclick="App.cancelSale()" class="btn py-3 font-bold rounded-xl text-base" style="background:var(--dnbg);color:var(--dn)">
+          <i class="fas fa-ban mr-2"></i>Cancelar
+        </button>
+      </div>`:''}
+    </div>`;
+  },
+  setup_pos(){
+    const input=document.getElementById('posSearch');if(!input)return;
+    let t;input.addEventListener('input',()=>{clearTimeout(t);t=setTimeout(()=>{
+      const q=input.value.trim().toLowerCase();const res=document.getElementById('posResults');
+      if(!q){res.classList.add('hidden');return}
+      const found=this.db.products.filter(p=>p.name.toLowerCase().includes(q)||p.sku.toLowerCase().includes(q)||(p.barcode&&p.barcode.includes(q)));
+      if(!found.length){res.classList.add('hidden');return}res.classList.remove('hidden');
+      res.innerHTML=found.slice(0,8).map(p=>`
+        <div onclick="App.showQtyModal('${p.id}')" class="flex items-center justify-between py-3 px-2 cursor-pointer rounded-lg" style="border-bottom:1px solid var(--border)">
+          <div><p class="text-sm font-medium" style="color:var(--tx)">${p.name}</p><p class="text-xs" style="color:var(--tx3)">${p.sku} · Stock: ${p.currentStock} ${p.unit}</p></div>
+          <div class="text-right"><p class="font-bold text-sm" style="color:var(--ac)">${this.fmt(p.salePrice)}</p><p class="text-xs" style="color:var(--tx4)">Tocar para agregar</p></div>
+        </div>`).join('');
+    },200)});input.focus();
+  },
+
+  // === MODAL DE CANTIDAD (al agregar producto) ===
+  showQtyModal(productId){
+    const p=this.db.products.find(pr=>pr.id===productId);if(!p)return;
+    if(p.currentStock<=0){this.toast('Sin stock disponible','error');return}
+    // Si ya está en el carrito, obtener cantidad actual
+    const existing=this.cart.find(it=>it.productId===productId);
+    const curQty=existing?existing.quantity:1;
+    this._pendingProductId=productId;
+    this.openModal(`
+      <div class="text-center mb-4">
+        <div class="w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-3" style="background:var(--acbg)">
+          ${p.photo?`<img src="${p.photo}" class="w-full h-full object-cover rounded-xl">`:`<i class="fas fa-box text-2xl" style="color:var(--ac)"></i>`}
+        </div>
+        <h3 class="text-lg font-bold" style="color:var(--tx)">${p.name}</h3>
+        <p class="text-sm" style="color:var(--tx3)">${p.sku} · Precio: ${this.fmt(p.salePrice)}</p>
+        <p class="text-xs mt-1" style="color:var(--tx4)">Stock disponible: ${p.currentStock} ${p.unit}</p>
+      </div>
+      <div class="flex items-center justify-center gap-5 my-6">
+        <button onclick="App.qtyModalChange(-1)" class="qty-circle" style="background:var(--dnbg);color:var(--dn)">-</button>
+        <div class="text-center">
+          <input id="qtyModalVal" type="number" class="inp text-center text-3xl font-bold font-mono w-24" value="${curQty}" min="1" max="${p.currentStock}" onchange="App.qtyModalCheck()">
+          <p class="text-xs mt-1" style="color:var(--tx3)">cantidad</p>
+        </div>
+        <button onclick="App.qtyModalChange(1)" class="qty-circle" style="background:var(--acbg);color:var(--ac)">+</button>
+      </div>
+      <div class="card text-center mb-4" style="border-color:var(--ac);background:var(--acbg)">
+        <p class="text-xs" style="color:var(--tx3)">Subtotal</p>
+        <p id="qtyModalSubtotal" class="text-2xl font-bold font-mono" style="color:var(--ac)">${this.fmt(p.salePrice*curQty)}</p>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <button onclick="App.addToCartFromModal()" class="btn py-3 font-bold rounded-xl" style="background:var(--ac);color:#fff"><i class="fas fa-cart-plus mr-2"></i>Agregar</button>
+        <button onclick="App.closeModal()" class="btn py-3 font-bold rounded-xl" style="background:var(--bg5);color:var(--tx)">Cancelar</button>
+      </div>
+    `);
+  },
+  showQtyModalByCode(code){
+    const p=this.db.products.find(pr=>pr.barcode===code||pr.sku===code);
+    if(p)this.showQtyModal(p.id);else this.toast('Producto no encontrado','error');
+  },
+  qtyModalChange(delta){
+    const input=document.getElementById('qtyModalVal');if(!input)return;
+    const p=this.db.products.find(pr=>pr.id===this._pendingProductId);if(!p)return;
+    let val=parseInt(input.value)||1;val+=delta;
+    if(val<1)val=1;if(val>p.currentStock){val=p.currentStock;this.toast('Máximo: '+p.currentStock,'warning')}
+    input.value=val;
+    document.getElementById('qtyModalSubtotal').textContent=this.fmt(p.salePrice*val);
+  },
+  qtyModalCheck(){
+    const input=document.getElementById('qtyModalVal');if(!input)return;
+    const p=this.db.products.find(pr=>pr.id===this._pendingProductId);if(!p)return;
+    let val=parseInt(input.value)||1;if(val<1)val=1;if(val>p.currentStock)val=p.currentStock;
+    input.value=val;document.getElementById('qtyModalSubtotal').textContent=this.fmt(p.salePrice*val);
+  },
+  addToCartFromModal(){
+    const pid=this._pendingProductId;if(!pid)return;
+    const qty=parseInt(document.getElementById('qtyModalVal').value)||1;
+    const p=this.db.products.find(pr=>pr.id===pid);if(!p)return;
+    const existing=this.cart.find(it=>it.productId===pid);
+    if(existing){existing.quantity=qty;existing.total=existing.unitPrice*qty}
+    else{this.cart.push({productId:p.id,productName:p.name,quantity:qty,unitPrice:p.salePrice,total:p.salePrice*qty})}
+    this.closeModal();this.navigate('pos');this.toast(p.name+' x'+qty+' agregado');
+  },
+
+  // Ajustar cantidad desde el carrito
+  cartChangeQty(i,delta){
+    const it=this.cart[i];if(!it)return;
+    const p=this.db.products.find(pr=>pr.id===it.productId);const maxS=p?p.currentStock:999;
+    let nq=it.quantity+delta;if(nq<1){this.removeCartItem(i);return}if(nq>maxS){this.toast('Stock máx: '+maxS,'warning');return}
+    it.quantity=nq;it.total=it.unitPrice*nq;this.navigate('pos');
+  },
+  removeCartItem(i){this.cart.splice(i,1);this.navigate('pos')},
+  cancelSale(){if(confirm('¿Cancelar venta completa?')){this.cart=[];this.navigate('pos')}},
+
+  // Confirmación de venta
+  showConfirmSale(){
+    if(!this.cart.length)return;
+    const total=this.cart.reduce((s,it)=>s+it.total,0);
+    const itemsCount=this.cart.reduce((s,it)=>s+it.quantity,0);
+    const list=this.cart.map(it=>`<div class="flex justify-between py-1 text-sm" style="border-bottom:1px solid var(--border)"><span style="color:var(--tx)">${it.productName} x${it.quantity}</span><span class="font-mono font-bold" style="color:var(--ac)">${this.fmt(it.total)}</span></div>`).join('');
+    this.openModal(`
+      <div class="text-center mb-4">
+        <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3" style="background:var(--acbg)"><i class="fas fa-cash-register text-3xl" style="color:var(--ac)"></i></div>
+        <h3 class="text-xl font-bold" style="color:var(--tx)">Confirmar Venta</h3>
+        <p class="text-sm mt-1" style="color:var(--tx3)">${itemsCount} producto(s)</p>
+      </div>
+      <div class="card mb-4">${list}</div>
+      <div class="card mb-4" style="border-color:var(--ac);background:var(--acbg)">
+        <div class="flex items-center justify-between"><span class="text-lg font-bold" style="color:var(--tx)">TOTAL A COBRAR</span><span class="text-2xl font-bold font-mono" style="color:var(--ac)">${this.fmt(total)}</span></div>
+      </div>
+      <button onclick="App.confirmSale()" class="btn confirm-btn w-full py-4 font-bold rounded-xl text-lg" style="background:var(--ac);color:#fff"><i class="fas fa-check-circle mr-2"></i>CONFIRMAR VENTA</button>
+      <button onclick="App.closeModal()" class="btn w-full py-3 font-bold rounded-xl mt-3" style="background:var(--bg5);color:var(--tx)"><i class="fas fa-arrow-left mr-2"></i>Regresar</button>
+    `);
+  },
+  confirmSale(){
+    if(!this.cart.length)return;
+    const sale={id:this.genId(),ticketNumber:'T-'+String(this.db.ticketCounter).padStart(6,'0'),items:[...this.cart],total:this.cart.reduce((s,it)=>s+it.total,0),date:new Date().toISOString(),status:'completed'};
+    this.db.sales.push(sale);this.db.ticketCounter++;
+    sale.items.forEach(it=>{const p=this.db.products.find(pr=>pr.id===it.productId);if(p)p.currentStock=Math.max(0,p.currentStock-it.quantity)});
+    this.save();this.cart=[];this.closeModal();this.showTicket(sale);
+  },
+  showTicket(sale){
+    const lines=sale.items.map(it=>`<tr><td style="text-align:left;padding:2px 4px">${it.productName}</td><td style="text-align:center">${it.quantity}</td><td style="text-align:right;padding:2px 4px">${this.fmt(it.total)}</td></tr>`).join('');
+    this.openModal(`
+      <div class="text-center mb-4"><i class="fas fa-receipt text-4xl" style="color:var(--ac)"></i><h3 class="font-bold text-xl mt-2" style="color:var(--tx)">Venta Completada</h3><p class="text-sm" style="color:var(--ac)">${sale.ticketNumber}</p></div>
+      <div class="p-4 rounded-xl font-mono text-xs leading-relaxed" style="background:#fff;color:#000">
+        <p style="text-align:center;font-weight:bold;font-size:14px">${this.db.businessName}</p>
+        <p style="text-align:center;font-size:10px;margin-top:4px">${sale.ticketNumber} | ${this.fmtDate(sale.date)}</p>
+        <hr style="margin:8px 0;border-color:#ccc"><table style="width:100%;border-collapse:collapse"><tr style="font-weight:bold;border-bottom:1px solid #ccc"><th style="text-align:left">Prod</th><th>Cant</th><th style="text-align:right">Total</th></tr>${lines}</table><hr style="margin:8px 0;border-color:#ccc"><p style="text-align:right;font-weight:bold;font-size:16px">TOTAL: ${this.fmt(sale.total)}</p><hr style="margin:8px 0;border-color:#ccc"><p style="text-align:center;font-size:10px">Gracias por su compra</p>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mt-4">
+        <button onclick="App.printTicket(App.db.sales.find(s=>s.id==='${sale.id}'));App.closeModal();App.navigate('pos')" class="btn py-3 font-bold rounded-xl" style="background:var(--bl);color:#fff"><i class="fas fa-print mr-2"></i>Imprimir BT</button>
+        <button onclick="App.closeModal();App.navigate('pos')" class="btn py-3 font-bold rounded-xl" style="background:var(--ac);color:#fff"><i class="fas fa-check mr-2"></i>Listo</button>
+      </div>`);
+  },
+
+  // ============================================================
+  //   PRODUCTOS
+  // ============================================================
+  render_products(){
+    const prods=this.db.products.map(p=>{const sup=this.getSupplier(p.supplierId);return `<div class="card mb-3 flex items-start gap-3"><div class="w-14 h-14 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden" style="background:var(--bg5)">${p.photo?`<img src="${p.photo}" class="w-full h-full object-cover">`:`<i class="fas fa-box text-xl" style="color:var(--tx4)"></i>`}</div><div class="flex-1 min-w-0"><div class="flex items-start justify-between"><div><p class="font-bold text-sm" style="color:var(--tx)">${p.name}</p><p class="text-xs" style="color:var(--tx3)">${p.sku} · ${p.category}</p></div><div class="flex gap-1"><button onclick="App.editProduct('${p.id}')" style="color:var(--ac)" class="text-xs p-1"><i class="fas fa-edit"></i></button><button onclick="App.deleteProduct('${p.id}')" style="color:var(--dn)" class="text-xs p-1"><i class="fas fa-trash"></i></button></div></div><div class="flex gap-3 mt-1 text-xs flex-wrap"><span style="color:var(--tx3)">Compra: ${this.fmt(p.purchasePrice)}</span><span style="color:var(--ac)">Venta: ${this.fmt(p.salePrice)}</span><span style="color:var(--wn)">Público: ${this.fmt(p.publicPrice)}</span></div><div class="flex gap-3 mt-1 text-xs flex-wrap"><span style="color:var(--tx3)">Stock: ${p.currentStock} ${p.unit}</span><span style="color:var(--tx3)">Sugerido: ${p.suggestedStock}</span>${sup?`<span style="color:var(--tx3)">Prov: ${sup.companyName}</span>`:''}</div></div></div>`}).join('');
+    return `<div class="space-y-4"><div class="flex gap-2"><div class="flex-1 relative"><input id="prodSearch" class="inp pr-10" placeholder="Buscar producto..."><button onclick="App.openScanner(code=>App.searchProductByCode(code))" class="absolute right-2 top-1/2 -translate-y-1/2" style="color:var(--ac)"><i class="fas fa-barcode"></i></button></div><button onclick="App.editProduct()" class="btn px-4 font-bold rounded-xl" style="background:var(--ac);color:#fff"><i class="fas fa-plus"></i></button></div><div id="prodList">${prods||`<p class="text-center py-8" style="color:var(--tx4)">Sin productos registrados</p>`}</div></div>`;
+  },
+  setup_products(){const input=document.getElementById('prodSearch');if(!input)return;input.addEventListener('input',()=>{const q=input.value.trim().toLowerCase();document.querySelectorAll('#prodList .card').forEach(c=>{c.style.display=c.textContent.toLowerCase().includes(q)?'':'none'})})},
+  searchProductByCode(code){const p=this.db.products.find(pr=>pr.barcode===code||pr.sku===code);if(p)this.editProduct(p.id);else this.toast('No encontrado','error')},
+  editProduct(id){
+    const p=id?this.db.products.find(pr=>pr.id===id):null;
+    const supOpts=this.db.suppliers.map(s=>`<option value="${s.id}" ${p&&p.supplierId===s.id?'selected':''}>${s.companyName}</option>`).join('');
+    const catOpts=this.db.categories.map(c=>`<option value="${c}" ${p&&p.category===c?'selected':''}>${c}</option>`).join('');
+    this.openModal(`<h3 class="font-bold text-lg mb-4" style="color:var(--tx)">${p?'Editar':'Nuevo'} Producto</h3><div class="space-y-3"><div class="grid grid-cols-2 gap-3"><div class="col-span-2"><label class="text-xs" style="color:var(--tx3)">Nombre del producto</label><input id="pName" class="inp" value="${p?.name||''}" placeholder="Nombre del producto"></div><div><label class="text-xs" style="color:var(--tx3)">SKU</label><div class="flex gap-1"><input id="pSku" class="inp" value="${p?.sku||''}" placeholder="Auto"><button onclick="document.getElementById('pSku').value=App.genSKU(document.getElementById('pCategory').value)" class="btn px-2 rounded-lg text-xs" style="background:var(--bg5);color:var(--tx3)"><i class="fas fa-dice"></i></button></div></div><div><label class="text-xs" style="color:var(--tx3)">Código de barras</label><div class="flex gap-1"><input id="pBarcode" class="inp" value="${p?.barcode||''}" placeholder="Escanear"><button onclick="App.openScanner(code=>document.getElementById('pBarcode').value=code)" class="btn px-2 rounded-lg text-xs" style="background:var(--bg5);color:var(--tx3)"><i class="fas fa-barcode"></i></button></div></div><div><label class="text-xs" style="color:var(--tx3)">Categoría</label><div class="flex gap-1"><select id="pCategory" class="inp">${catOpts}</select><button onclick="App.addCategory()" class="btn px-2 rounded-lg text-xs" style="background:var(--bg5);color:var(--tx3)"><i class="fas fa-plus"></i></button></div></div><div><label class="text-xs" style="color:var(--tx3)">Unidad de medida</label><select id="pUnit" class="inp">${['pza','kg','ml','m2','m3','jgo'].map(u=>`<option value="${u}" ${p?.unit===u?'selected':''}>${u}</option>`).join('')}</select></div><div><label class="text-xs" style="color:var(--tx3)">Precio de compra (costo)</label><input id="pCost" class="inp" type="number" step="0.01" value="${p?.purchasePrice||''}" placeholder="0.00"></div><div><label class="text-xs" style="color:var(--tx3)">Precio de venta</label><input id="pSale" class="inp" type="number" step="0.01" value="${p?.salePrice||''}" placeholder="0.00"></div><div><label class="text-xs" style="color:var(--tx3)">Precio público</label><input id="pPublic" class="inp" type="number" step="0.01" value="${p?.publicPrice||''}" placeholder="0.00"></div><div><label class="text-xs" style="color:var(--tx3)">Stock actual</label><input id="pStock" class="inp" type="number" value="${p?.currentStock||0}"></div><div><label class="text-xs" style="color:var(--tx3)">Stock sugerido</label><input id="pSugStock" class="inp" type="number" value="${p?.suggestedStock||0}"></div><div><label class="text-xs" style="color:var(--tx3)">Proveedor</label><select id="pSupplier" class="inp"><option value="">Sin proveedor</option>${supOpts}</select></div><div><label class="text-xs" style="color:var(--tx3)">Foto del producto</label><input id="pPhoto" type="file" accept="image/*" class="inp text-xs" onchange="App.handlePhoto(this)"></div></div><div id="pPhotoPreview">${p?.photo?`<img src="${p.photo}" class="w-16 h-16 rounded-lg object-cover mt-1">`:''}</div><div class="grid grid-cols-2 gap-3 mt-4"><button onclick="App.saveProduct('${id||''}')" class="btn py-3 font-bold rounded-xl" style="background:var(--ac);color:#fff"><i class="fas fa-save mr-2"></i>Guardar</button><button onclick="App.closeModal()" class="btn py-3 font-bold rounded-xl" style="background:var(--bg5);color:var(--tx)">Limpiar</button></div></div>`);
+  },
+  _pendingPhoto:null,
+  handlePhoto(input){const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{const img=new Image();img.onload=()=>{const canvas=document.createElement('canvas');const max=200;let w=img.width,h=img.height;if(w>h){if(w>max){h*=max/w;w=max}}else{if(h>max){w*=max/h;h=max}}canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(img,0,0,w,h);this._pendingPhoto=canvas.toDataURL('image/jpeg',0.7);document.getElementById('pPhotoPreview').innerHTML=`<img src="${this._pendingPhoto}" class="w-16 h-16 rounded-lg object-cover mt-1">`};img.src=e.target.result};reader.readAsDataURL(file)},
+  addCategory(){const name=prompt('Nombre de la nueva categoría:');if(name&&!this.db.categories.includes(name)){this.db.categories.push(name);this.save();this.toast('Categoría agregada')}},
+  saveProduct(id){const data={id:id||this.genId(),name:document.getElementById('pName').value.trim(),sku:document.getElementById('pSku').value.trim()||this.genSKU(document.getElementById('pCategory').value),barcode:document.getElementById('pBarcode').value.trim(),category:document.getElementById('pCategory').value,unit:document.getElementById('pUnit').value,purchasePrice:parseFloat(document.getElementById('pCost').value)||0,salePrice:parseFloat(document.getElementById('pSale').value)||0,publicPrice:parseFloat(document.getElementById('pPublic').value)||0,currentStock:parseInt(document.getElementById('pStock').value)||0,suggestedStock:parseInt(document.getElementById('pSugStock').value)||0,supplierId:document.getElementById('pSupplier').value,photo:this._pendingPhoto||(id?this.db.products.find(p=>p.id===id)?.photo:null),createdAt:id?this.db.products.find(p=>p.id===id)?.createdAt:new Date().toISOString()};if(!data.name){this.toast('Nombre requerido','error');return}if(id){const idx=this.db.products.findIndex(p=>p.id===id);if(idx>=0)this.db.products[idx]=data}else this.db.products.push(data);this.save();this._pendingPhoto=null;this.closeModal();this.navigate('products');this.toast('Producto guardado')},
+  deleteProduct(id){if(!confirm('¿Eliminar este producto?'))return;this.db.products=this.db.products.filter(p=>p.id!==id);this.save();this.navigate('products');this.toast('Eliminado','warning')},
+
+  // INVENTARIO
+  render_inventory(){const rows=this.db.products.map(p=>{const sup=this.getSupplier(p.supplierId);const sc=p.currentStock<=0?'var(--dn)':p.currentStock<=p.suggestedStock*0.3?'var(--wn)':'var(--ac)';return `<div class="card mb-2"><div class="flex items-center justify-between"><div class="flex-1 min-w-0"><p class="font-bold text-sm" style="color:var(--tx)">${p.name}</p><p class="text-xs" style="color:var(--tx3)">${p.sku} · ${p.category} ${sup?'· '+sup.companyName:''}</p></div><div class="text-right"><p class="font-mono font-bold" style="color:${sc}">${p.currentStock} ${p.unit}</p><p class="text-xs" style="color:var(--tx3)">Venta: ${this.fmt(p.salePrice)} | Pub: ${this.fmt(p.publicPrice)}</p></div></div></div>`}).join('');return `<div class="space-y-3"><div class="flex gap-2"><div class="flex-1 relative"><input id="invSearch" class="inp pr-10" placeholder="Buscar en inventario..."><button onclick="App.openScanner(code=>App.invSearchByCode(code))" class="absolute right-2 top-1/2 -translate-y-1/2" style="color:var(--ac)"><i class="fas fa-barcode"></i></button></div><button onclick="App.printInventory()" class="btn px-3 rounded-xl" style="background:var(--bg5);color:var(--tx)"><i class="fas fa-print"></i></button></div><div id="invList">${rows||`<p class="text-center py-8" style="color:var(--tx4)">Sin productos</p>`}</div></div>`},
+  setup_inventory(){const input=document.getElementById('invSearch');if(!input)return;input.addEventListener('input',()=>{const q=input.value.trim().toLowerCase();document.querySelectorAll('#invList .card').forEach(c=>{c.style.display=c.textContent.toLowerCase().includes(q)?'':'none'})})},
+  invSearchByCode(code){this.navigate('inventory');setTimeout(()=>{const i=document.getElementById('invSearch');if(i){i.value=code;i.dispatchEvent(new Event('input'))}},100)},
+  printInventory(){const rows=this.db.products.map(p=>`<tr><td>${p.name}</td><td>${p.sku}</td><td>${p.currentStock} ${p.unit}</td><td>${this.fmt(p.salePrice)}</td></tr>`).join('');this.browserPrint(`<h2>Inventario - ${this.db.businessName}</h2><table border="1" cellpadding="4" style="border-collapse:collapse;width:100%;font-size:10px"><tr><th>Producto</th><th>SKU</th><th>Stock</th><th>P.Venta</th></tr>${rows}</table><p style="font-size:9px">${new Date().toLocaleString('es-MX')}</p>`)},
+
+  // ETIQUETAS
+  render_labels(){const items=this.db.products.slice(0,30).map(p=>`<div class="card mb-2 flex items-center gap-3 cursor-pointer" onclick="App.selectLabel('${p.id}')"><svg id="barcode_${p.id.substring(0,8)}"></svg><div class="flex-1"><p class="font-bold text-sm" style="color:var(--tx)">${p.name}</p><p class="text-xs" style="color:var(--tx3)">SKU: ${p.sku}</p><p class="font-bold" style="color:var(--ac)">${this.fmt(p.publicPrice)}</p></div><i class="fas fa-print" style="color:var(--tx4)"></i></div>`).join('');return `<div class="space-y-3"><div class="flex gap-2"><div class="flex-1 relative"><input id="labelSearch" class="inp pr-10" placeholder="Buscar producto..."><button onclick="App.openScanner(code=>{document.getElementById('labelSearch').value=code;App.filterLabels()})" class="absolute right-2 top-1/2 -translate-y-1/2" style="color:var(--ac)"><i class="fas fa-barcode"></i></button></div></div><button onclick="App.printAllLabels()" class="btn w-full py-2 rounded-xl text-sm font-bold" style="background:var(--acbg);color:var(--ac)"><i class="fas fa-print mr-2"></i>Imprimir todas las etiquetas</button><div id="labelList">${items||`<p class="text-center py-8" style="color:var(--tx4)">Sin productos</p>`}</div></div>`},
+  setup_labels(){setTimeout(()=>{this.db.products.forEach(p=>{try{JsBarcode(`#barcode_${p.id.substring(0,8)}`,p.barcode||p.sku,{format:p.barcode&&p.barcode.length===13?'EAN13':'CODE128',width:1.5,height:35,displayValue:false,margin:2,background:'transparent',lineColor:this.isLight()?'#333':'#fff'})}catch(e){}})},100);const input=document.getElementById('labelSearch');if(input)input.addEventListener('input',()=>this.filterLabels())},
+  filterLabels(){const q=(document.getElementById('labelSearch')?.value||'').trim().toLowerCase();document.querySelectorAll('#labelList .card').forEach(c=>{c.style.display=c.textContent.toLowerCase().includes(q)?'':'none'})},
+  selectLabel(id){const p=this.db.products.find(pr=>pr.id===id);if(!p)return;this.openModal(`<h3 class="font-bold text-lg mb-4" style="color:var(--tx)">Etiqueta para Anaquel</h3><div class="p-4 rounded-xl text-center" style="background:#fff;color:#000"><p style="font-weight:bold;font-size:16px">${p.name}</p><p style="font-size:12px">SKU: ${p.sku}</p><svg id="labelBarcode"></svg><p style="font-size:22px;font-weight:bold;margin-top:8px">${this.fmt(p.publicPrice)}</p></div><div class="grid grid-cols-2 gap-3 mt-4"><button onclick="App.printLabel(App.db.products.find(p=>p.id==='${id}'));App.closeModal()" class="btn py-3 font-bold rounded-xl" style="background:var(--ac);color:#fff"><i class="fas fa-print mr-2"></i>Imprimir</button><button onclick="App.closeModal()" class="btn py-3 font-bold rounded-xl" style="background:var(--bg5);color:var(--tx)">Cerrar</button></div>`);setTimeout(()=>{try{JsBarcode('#labelBarcode',p.barcode||p.sku,{format:p.barcode&&p.barcode.length===13?'EAN13':'CODE128',width:2,height:50,displayValue:true,margin:4,fontSize:12})}catch(e){}},100)},
+  printAllLabels(){this.db.products.forEach(p=>this.printLabel(p));this.toast('Enviando etiquetas')},
+
+  // MENÚ MÁS
+  render_menu(){const items=[{icon:'fa-truck',label:'Proveedores',page:'suppliers',color:'var(--bl)'},{icon:'fa-clipboard-list',label:'Pedidos Sugeridos',page:'orders',color:'var(--wn)'},{icon:'fa-clipboard-check',label:'Pre-Inventario',page:'preinventory',color:'var(--pp)'},{icon:'fa-crown',label:'Modo Dueño',page:'owner',color:'var(--yw)'}];return `<div class="grid grid-cols-2 gap-4 pt-2">${items.map(it=>`<button onclick="App.navigate('${it.page}')" class="btn card flex flex-col items-center justify-center py-7 gap-3"><i class="fas ${it.icon} text-3xl" style="color:${it.color}"></i><span class="text-sm font-bold" style="color:var(--tx)">${it.label}</span></button>`).join('')}</div>`},
+
+  // PROVEEDORES
+  render_suppliers(){const list=this.db.suppliers.map(s=>`<div class="card mb-3"><div class="flex items-start justify-between"><div><p class="font-bold" style="color:var(--tx)">${s.companyName}</p><p class="text-xs" style="color:var(--tx3)"><i class="fas fa-map-marker-alt mr-1"></i>${s.address}</p><p class="text-sm mt-1" style="color:var(--tx2)"><i class="fas fa-user mr-1" style="color:var(--ac)"></i>${s.sellerName}</p><p class="text-sm" style="color:var(--ac)"><i class="fas fa-phone mr-1"></i>${s.sellerPhone}</p></div><div class="flex gap-2"><button onclick="App.editSupplier('${s.id}')" style="color:var(--ac)"><i class="fas fa-edit"></i></button><button onclick="App.deleteSupplier('${s.id}')" style="color:var(--dn)"><i class="fas fa-trash"></i></button></div></div></div>`).join('');return `<div class="space-y-3"><button onclick="App.editSupplier()" class="btn w-full py-3 font-bold rounded-xl" style="background:var(--ac);color:#fff"><i class="fas fa-plus mr-2"></i>Nuevo Proveedor</button><div>${list||`<p class="text-center py-8" style="color:var(--tx4)">Sin proveedores</p>`}</div></div>`},
+  editSupplier(id){const s=id?this.db.suppliers.find(su=>su.id===id):null;this.openModal(`<h3 class="font-bold text-lg mb-4" style="color:var(--tx)">${s?'Editar':'Nuevo'} Proveedor</h3><div class="space-y-3"><div><label class="text-xs" style="color:var(--tx3)">Nombre de la empresa</label><input id="sCompany" class="inp" value="${s?.companyName||''}"></div><div><label class="text-xs" style="color:var(--tx3)">Dirección</label><input id="sAddress" class="inp" value="${s?.address||''}"></div><div><label class="text-xs" style="color:var(--tx3)">Nombre del vendedor</label><input id="sSeller" class="inp" value="${s?.sellerName||''}"></div><div><label class="text-xs" style="color:var(--tx3)">Teléfono del vendedor</label><input id="sPhone" class="inp" type="tel" value="${s?.sellerPhone||''}"></div><button onclick="App.saveSupplier('${id||''}')" class="btn w-full py-3 font-bold rounded-xl mt-4" style="background:var(--ac);color:#fff"><i class="fas fa-save mr-2"></i>Guardar</button></div>`)},
+  saveSupplier(id){const data={id:id||this.genId(),companyName:document.getElementById('sCompany').value.trim(),address:document.getElementById('sAddress').value.trim(),sellerName:document.getElementById('sSeller').value.trim(),sellerPhone:document.getElementById('sPhone').value.trim(),createdAt:id?this.db.suppliers.find(s=>s.id===id)?.createdAt:new Date().toISOString()};if(!data.companyName){this.toast('Nombre requerido','error');return}if(id){const idx=this.db.suppliers.findIndex(s=>s.id===id);if(idx>=0)this.db.suppliers[idx]=data}else this.db.suppliers.push(data);this.save();this.closeModal();this.navigate('suppliers');this.toast('Proveedor guardado')},
+  deleteSupplier(id){if(!confirm('¿Eliminar proveedor?'))return;this.db.suppliers=this.db.suppliers.filter(s=>s.id!==id);this.save();this.navigate('suppliers');this.toast('Eliminado','warning')},
+
+  // PEDIDOS SUGERIDOS
+  render_orders(){const suppliers=this.db.suppliers.map(s=>{const prods=this.db.products.filter(p=>p.supplierId===s.id);const orderItems=prods.filter(p=>p.currentStock<p.suggestedStock);if(!orderItems.length)return'';const items=orderItems.map(p=>`<div class="flex items-center justify-between py-1 text-sm" style="border-bottom:1px solid var(--border)"><span style="color:var(--tx)">${p.name}</span><div class="flex items-center gap-2"><span class="text-xs" style="color:var(--tx3)">Stock: ${p.currentStock}/${p.suggestedStock}</span><span class="badge" style="background:var(--wnbg);color:var(--wn)">Pedir: ${p.suggestedStock-p.currentStock}</span></div></div>`).join('');return `<div class="card mb-3"><div class="flex items-center justify-between mb-2"><div><p class="font-bold" style="color:var(--tx)">${s.companyName}</p><p class="text-xs" style="color:var(--tx3)">${s.sellerName} · ${s.sellerPhone}</p></div><div class="flex gap-2"><button onclick="App.sendOrderWhatsApp('${s.id}')" class="btn px-3 py-1 rounded-lg text-xs font-bold" style="background:#25d366;color:#fff"><i class="fab fa-whatsapp mr-1"></i>WhatsApp</button><button onclick="App.printOrder('${s.id}')" class="btn px-3 py-1 rounded-lg text-xs" style="background:var(--bg5);color:var(--tx)"><i class="fas fa-print"></i></button></div></div>${items}</div>`}).join('');return `<div class="space-y-3"><p class="text-xs" style="color:var(--tx3)">Pedidos calculados: Stock Sugerido - Stock Actual, agrupados por proveedor.</p><div>${suppliers||`<p class="text-center py-8" style="color:var(--tx4)">No hay pedidos sugeridos pendientes</p>`}</div></div>`},
+  sendOrderWhatsApp(supplierId){const s=this.db.suppliers.find(su=>su.id===supplierId);if(!s)return;const prods=this.db.products.filter(p=>p.supplierId===supplierId&&p.currentStock<p.suggestedStock);let msg=`Pedido a ${s.companyName}\n\n`;prods.forEach(p=>{msg+=`${p.name} - Cantidad: ${p.suggestedStock-p.currentStock} ${p.unit}\n`});msg+=`\nEnviar a: ${s.sellerName}`;window.open(`https://wa.me/${s.sellerPhone.replace(/[^0-9]/g,'')}?text=${encodeURIComponent(msg)}`,'_blank')},
+  printOrder(supplierId){const s=this.db.suppliers.find(su=>su.id===supplierId);if(!s)return;const prods=this.db.products.filter(p=>p.supplierId===supplierId&&p.currentStock<p.suggestedStock);const rows=prods.map(p=>`<tr><td>${p.name}</td><td>${p.currentStock}</td><td>${p.suggestedStock}</td><td>${p.suggestedStock-p.currentStock} ${p.unit}</td></tr>`).join('');this.browserPrint(`<h2>Pedido - ${s.companyName}</h2><p>Vendedor: ${s.sellerName} | Tel: ${s.sellerPhone}</p><table border="1" cellpadding="4" style="border-collapse:collapse;width:100%;font-size:10px"><tr><th>Producto</th><th>Stock Actual</th><th>Stock Sugerido</th><th>Cantidad a Pedir</th></tr>${rows}</table>`)},
+
+  // PRE-INVENTARIO
+  render_preinventory(){const prods=[...this.db.products].sort((a,b)=>b.publicPrice-a.publicPrice);const items=prods.map((p,i)=>`<div class="flex items-center gap-3 py-2 ${i>0?'border-t':''}" style="border-color:var(--border)"><input type="checkbox" class="w-5 h-5 flex-shrink-0" style="accent-color:var(--ac)"><div class="flex-1 min-w-0"><p class="text-sm font-medium truncate" style="color:var(--tx)">${p.name}</p><p class="text-xs" style="color:var(--tx3)">${p.sku} · ${p.category}</p></div><div class="text-right"><p class="font-mono text-sm" style="color:var(--tx)">${this.fmt(p.publicPrice)}</p><p class="text-xs" style="color:var(--tx3)">Stock: ${p.currentStock} ${p.unit}</p></div></div>`).join('');return `<div class="space-y-3"><div class="flex gap-2"><div class="flex-1 relative"><input id="preinvSearch" class="inp pr-10" placeholder="Buscar producto..."><button onclick="App.openScanner(code=>{document.getElementById('preinvSearch').value=code;App.filterPreInv()})" class="absolute right-2 top-1/2 -translate-y-1/2" style="color:var(--ac)"><i class="fas fa-barcode"></i></button></div><button onclick="App.printPreInventory()" class="btn px-3 rounded-xl" style="background:var(--bg5);color:var(--tx)"><i class="fas fa-print"></i></button></div><p class="text-xs" style="color:var(--tx3)">Productos de mayor a menor precio. Marca los contados.</p><div id="preinvList" class="card">${items||`<p class="text-center py-8" style="color:var(--tx4)">Sin productos</p>`}</div></div>`},
+  setup_preinventory(){const input=document.getElementById('preinvSearch');if(input)input.addEventListener('input',()=>this.filterPreInv())},
+  filterPreInv(){const q=(document.getElementById('preinvSearch')?.value||'').trim().toLowerCase();document.querySelectorAll('#preinvList > div').forEach(el=>{el.style.display=el.textContent.toLowerCase().includes(q)?'':'none'})},
+  printPreInventory(){const prods=[...this.db.products].sort((a,b)=>b.publicPrice-a.publicPrice);const rows=prods.map(p=>`<tr><td style="font-size:16px">☐</td><td>${p.name}</td><td>${p.sku}</td><td>${p.currentStock} ${p.unit}</td><td>______</td></tr>`).join('');this.browserPrint(`<h2>Pre-Inventario - Conteo Físico</h2><p>${this.db.businessName} | ${new Date().toLocaleDateString('es-MX')}</p><table border="1" cellpadding="4" style="border-collapse:collapse;width:100%;font-size:10px"><tr><th>✓</th><th>Producto</th><th>SKU</th><th>Stock Sistema</th><th>Conteo Físico</th></tr>${rows}</table>`)},
+
+  // ============================================================
+  //   MODO DUEÑO - Con TODO incluido (PIN, reinicio, cierre, gráficas)
+  // ============================================================
+  render_owner(){
+    if(!this.ownerVerified){
+      return `<div class="flex flex-col items-center justify-center py-16"><i class="fas fa-crown text-5xl mb-4" style="color:var(--yw)"></i><h3 class="text-xl font-bold mb-4" style="color:var(--tx)">Acceso Restringido</h3><input id="ownerPinInput" type="password" maxlength="6" class="inp text-center text-xl tracking-[.5em] font-mono mb-4 max-w-xs" placeholder="PIN Dueño" inputmode="numeric"><button onclick="App.verifyOwner()" class="btn px-8 py-3 font-bold rounded-xl" style="background:var(--yw);color:#000">Acceder</button><p class="text-xs mt-4" style="color:var(--tx4)">PIN por defecto: 0000</p></div>`;
+    }
+    const today=new Date().toISOString().split('T')[0];
+    const todaySales=this.db.sales.filter(s=>s.date.startsWith(today)&&s.status==='completed');
+    const todayTotal=todaySales.reduce((s,sa)=>s+sa.total,0);
+    const todayCost=todaySales.reduce((s,sa)=>s+this.getSaleCost(sa),0);
+    const todayProfit=todayTotal-todayCost;
+    const todayTickets=todaySales.length;
+    const totalSales=this.db.sales.filter(s=>s.status==='completed').reduce((s,sa)=>s+sa.total,0);
+    const totalShrinkage=this.db.shrinkage.reduce((s,sh)=>s+sh.quantity*sh.costPrice,0);
+    const lowStock=this.db.products.filter(p=>p.currentStock<=p.suggestedStock*0.3).length;
+    const alreadyClosed=this.db.closings.some(c=>c.date.startsWith(today));
+
+    return `
+    <div class="space-y-4">
+      <!-- Resumen del día -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="card" style="border-color:var(--ac)"><p class="text-xs" style="color:var(--tx3)">Ventas Hoy</p><p class="text-xl font-bold font-mono" style="color:var(--ac)">${this.fmt(todayTotal)}</p></div>
+        <div class="card" style="border-color:var(--yw)"><p class="text-xs" style="color:var(--tx3)">Utilidad Hoy</p><p class="text-xl font-bold font-mono" style="color:var(--yw)">${this.fmt(todayProfit)}</p></div>
+        <div class="card" style="border-color:var(--dn)"><p class="text-xs" style="color:var(--tx3)">Compras (Costo) Hoy</p><p class="text-xl font-bold font-mono" style="color:var(--dn)">${this.fmt(todayCost)}</p></div>
+        <div class="card" style="border-color:var(--bl)"><p class="text-xs" style="color:var(--tx3)">Tickets Hoy</p><p class="text-xl font-bold font-mono" style="color:var(--bl)">${todayTickets}</p></div>
+      </div>
+
+      <!-- Gráfica Ventas/Compras/Utilidad -->
+      <div class="card">
+        <p class="text-sm font-bold mb-3" style="color:var(--tx)"><i class="fas fa-chart-line mr-2" style="color:var(--ac)"></i>Ventas / Compras / Utilidad (7 días)</p>
+        <canvas id="mainChart" height="200"></canvas>
+      </div>
+
+      <!-- Gráfica Tráfico Tickets -->
+      <div class="card">
+        <p class="text-sm font-bold mb-3" style="color:var(--tx)"><i class="fas fa-users mr-2" style="color:var(--bl)"></i>Trafico de Clientes / Tickets (7 días)</p>
+        <canvas id="ticketsChart" height="160"></canvas>
+      </div>
+
+      <!-- Stock bajo -->
+      <div class="card">
+        <p class="text-sm font-bold mb-2" style="color:var(--tx)"><i class="fas fa-exclamation-triangle mr-2" style="color:var(--dn)"></i>Stock Bajo (${lowStock})</p>
+        <div class="max-h-32 overflow-y-auto">${this.db.products.filter(p=>p.currentStock<=p.suggestedStock*0.3).slice(0,5).map(p=>`<p class="text-xs py-1" style="border-bottom:1px solid var(--border);color:var(--tx)">${p.name} - Stock: <span style="color:var(--dn)">${p.currentStock}</span> / ${p.suggestedStock}</p>`).join('')||`<p class="text-xs" style="color:var(--tx4)">Todo OK</p>`}</div>
+      </div>
+
+      <!-- Mermas resumen -->
+      <div class="card"><div class="flex items-center justify-between"><p class="text-sm font-bold" style="color:var(--tx)"><i class="fas fa-exclamation-circle mr-2" style="color:var(--dn)"></i>Perdidas por Mermas</p><p class="font-bold font-mono" style="color:var(--dn)">${this.fmt(totalShrinkage)}</p></div></div>
+
+      <!-- CIERRE DEL DÍA -->
+      <div class="card" style="border-color:var(--yw);background:var(--ywbg)">
+        <div class="flex items-center justify-between mb-2">
+          <p class="font-bold" style="color:var(--tx)"><i class="fas fa-calendar-check mr-2" style="color:var(--yw)"></i>Cierre del Día</p>
+          ${alreadyClosed?'<span class="badge" style="background:var(--acbg);color:var(--ac)">Cerrado</span>':'<span class="badge" style="background:var(--wnbg);color:var(--wn)">Pendiente</span>'}
+        </div>
+        <p class="text-xs mb-3" style="color:var(--tx3)">Registra el cierre del día para guardar en el histórico.</p>
+        <div class="grid grid-cols-2 gap-3">
+          <button onclick="App.closeDay()" class="btn py-2 font-bold rounded-xl text-sm ${alreadyClosed?'opacity-50':''}" style="background:var(--yw);color:#000" ${alreadyClosed?'disabled':''}><i class="fas fa-lock mr-1"></i>${alreadyClosed?'Ya Cerrado':'Cerrar Día'}</button>
+          <button onclick="App.printClosing()" class="btn py-2 font-bold rounded-xl text-sm" style="background:var(--bg5);color:var(--tx)"><i class="fas fa-print mr-1"></i>Imprimir Cierre</button>
+        </div>
+      </div>
+
+      <!-- Acciones rápidas -->
+      <div class="grid grid-cols-2 gap-3">
+        <button onclick="App.navigate('shrinkage')" class="btn card py-4 flex flex-col items-center gap-2" style="border-color:var(--dn)"><i class="fas fa-exclamation-circle text-xl" style="color:var(--dn)"></i><span class="text-xs font-bold" style="color:var(--tx)">Mermas</span></button>
+        <button onclick="App.navigate('history')" class="btn card py-4 flex flex-col items-center gap-2" style="border-color:var(--bl)"><i class="fas fa-history text-xl" style="color:var(--bl)"></i><span class="text-xs font-bold" style="color:var(--tx)">Histórico</span></button>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECCIÓN DE CONFIGURACIÓN DEL SISTEMA       -->
+      <!-- ========================================== -->
+      <div class="card" style="border-color:var(--pp)">
+        <h3 class="font-bold mb-4" style="color:var(--pp)"><i class="fas fa-cog mr-2"></i>Configuración del Sistema</h3>
+
+        <!-- Cambiar PIN de acceso -->
+        <div class="mb-4 p-3 rounded-xl" style="background:var(--bg4)">
+          <p class="text-sm font-bold mb-3" style="color:var(--tx)"><i class="fas fa-key mr-2" style="color:var(--wn)"></i>Cambiar PIN de Acceso a la App</p>
+          <div class="space-y-2">
+            <input id="oCurPin" type="password" maxlength="6" class="inp font-mono tracking-widest" placeholder="PIN actual" inputmode="numeric">
+            <input id="oNewPin" type="password" maxlength="6" class="inp font-mono tracking-widest" placeholder="Nuevo PIN (4-6 dígitos)" inputmode="numeric">
+            <input id="oConfPin" type="password" maxlength="6" class="inp font-mono tracking-widest" placeholder="Confirmar nuevo PIN" inputmode="numeric">
+            <button onclick="App.changePin()" class="btn w-full py-2 font-bold rounded-xl" style="background:var(--wn);color:#000"><i class="fas fa-save mr-2"></i>Cambiar PIN de Acceso</button>
+          </div>
+        </div>
+
+        <!-- Cambiar PIN de dueño -->
+        <div class="mb-4 p-3 rounded-xl" style="background:var(--bg4)">
+          <p class="text-sm font-bold mb-3" style="color:var(--tx)"><i class="fas fa-crown mr-2" style="color:var(--yw)"></i>Cambiar PIN de Dueño</p>
+          <div class="space-y-2">
+            <input id="oCurOwnerPin" type="password" maxlength="6" class="inp font-mono tracking-widest" placeholder="PIN dueño actual" inputmode="numeric">
+            <input id="oNewOwnerPin" type="password" maxlength="6" class="inp font-mono tracking-widest" placeholder="Nuevo PIN dueño" inputmode="numeric">
+            <input id="oConfOwnerPin" type="password" maxlength="6" class="inp font-mono tracking-widest" placeholder="Confirmar nuevo PIN dueño" inputmode="numeric">
+            <button onclick="App.changeOwnerPin()" class="btn w-full py-2 font-bold rounded-xl" style="background:var(--yw);color:#000"><i class="fas fa-save mr-2"></i>Cambiar PIN de Dueño</button>
+          </div>
+        </div>
+
+        <!-- Cambiar nombre del negocio -->
+        <div class="mb-4 p-3 rounded-xl" style="background:var(--bg4)">
+          <p class="text-sm font-bold mb-3" style="color:var(--tx)"><i class="fas fa-store mr-2" style="color:var(--ac)"></i>Nombre del Negocio</p>
+          <div class="space-y-2">
+            <input id="oBizName" class="inp" value="${this.db.businessName}" placeholder="Nombre del negocio">
+            <button onclick="App.db.businessName=document.getElementById('oBizName').value.trim()||'Mi Negocio';App.save();App.toast('Nombre actualizado')" class="btn w-full py-2 font-bold rounded-xl" style="background:var(--ac);color:#fff"><i class="fas fa-save mr-2"></i>Guardar Nombre</button>
+          </div>
+        </div>
+
+        <!-- REINICIO DEL SISTEMA -->
+        <div class="p-3 rounded-xl" style="background:var(--dnbg);border:2px solid var(--dn)">
+          <p class="text-sm font-bold mb-2" style="color:var(--dn)"><i class="fas fa-exclamation-triangle mr-2"></i>Reinicio del Sistema</p>
+          <p class="text-xs mb-3" style="color:var(--tx3)">Esto eliminará TODOS los datos: productos, ventas, proveedores, mermas, cierres. Esta acción no se puede deshacer.</p>
+          <button onclick="App.resetSystem()" class="btn w-full py-3 font-bold rounded-xl" style="background:var(--dn);color:#fff"><i class="fas fa-trash-alt mr-2"></i>REINICIAR TODO EL SISTEMA</button>
+        </div>
+      </div>
+    </div>`;
+  },
+
+  setup_owner(){if(!this.ownerVerified)return;setTimeout(()=>this.renderOwnerCharts(),200)},
+  renderOwnerCharts(){
+    const cc=this.cc();const labels=[];const ventas=[];const compras=[];const utilidad=[];const tickets=[];
+    for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const ds=d.toISOString().split('T')[0];labels.push(d.toLocaleDateString('es-MX',{weekday:'short',day:'numeric'}));const daySales=this.db.sales.filter(s=>s.date.startsWith(ds)&&s.status==='completed');const v=daySales.reduce((s,sa)=>s+sa.total,0);const c=daySales.reduce((s,sa)=>s+this.getSaleCost(sa),0);ventas.push(v);compras.push(c);utilidad.push(v-c);tickets.push(daySales.length)}
+    const ctx1=document.getElementById('mainChart');
+    if(ctx1){this.charts.main=new Chart(ctx1,{type:'line',data:{labels,datasets:[{label:'Ventas',data:ventas,borderColor:cc.ac,backgroundColor:cc.acBg,fill:true,tension:.4,pointRadius:3,pointBackgroundColor:cc.ac},{label:'Compras (Costo)',data:compras,borderColor:cc.dn,borderDash:[5,5],backgroundColor:'transparent',tension:.4,pointRadius:3,pointBackgroundColor:cc.dn},{label:'Utilidad',data:utilidad,borderColor:cc.yw,backgroundColor:'transparent',tension:.4,pointRadius:3,pointBackgroundColor:cc.yw}]},options:{responsive:true,plugins:{legend:{labels:{color:cc.text,font:{size:10}}}},scales:{x:{ticks:{color:cc.text},grid:{color:cc.grid}},y:{ticks:{color:cc.text,callback:v=>'$'+v},grid:{color:cc.grid}}}}})}
+    const ctx2=document.getElementById('ticketsChart');
+    if(ctx2){this.charts.tickets=new Chart(ctx2,{type:'bar',data:{labels,datasets:[{label:'No. de Tickets',data:tickets,backgroundColor:cc.bl,borderRadius:6}]},options:{responsive:true,plugins:{legend:{labels:{color:cc.text}}},scales:{x:{ticks:{color:cc.text},grid:{color:cc.grid}},y:{ticks:{color:cc.text,stepSize:1},grid:{color:cc.grid}}}}})}
+  },
+  verifyOwner(){const pin=document.getElementById('ownerPinInput')?.value;if(pin===this.db.ownerPin){this.ownerVerified=true;this.navigate('owner')}else this.toast('PIN incorrecto','error')},
+
+  // Cierre del día
+  closeDay(){
+    const today=new Date().toISOString().split('T')[0];
+    if(this.db.closings.some(c=>c.date.startsWith(today))){this.toast('El día ya fue cerrado','warning');return}
+    const todaySales=this.db.sales.filter(s=>s.date.startsWith(today)&&s.status==='completed');
+    const totalVentas=todaySales.reduce((s,sa)=>s+sa.total,0);
+    const totalCompras=todaySales.reduce((s,sa)=>s+this.getSaleCost(sa),0);
+    const totalUtilidad=totalVentas-totalCompras;
+    const numTickets=todaySales.length;
+    const totalMermas=this.db.shrinkage.filter(sh=>sh.date.startsWith(today)).reduce((s,sh)=>s+sh.quantity*sh.costPrice,0);
+    this.db.closings.push({id:this.genId(),date:new Date().toISOString(),totalVentas,totalCompras,totalUtilidad,numTickets,totalMermas});this.save();
+    this.openModal(`<div class="text-center mb-4"><i class="fas fa-calendar-check text-4xl" style="color:var(--yw)"></i><h3 class="text-xl font-bold mt-2" style="color:var(--tx)">Cierre del Día Registrado</h3><p class="text-sm" style="color:var(--tx3)">${new Date().toLocaleDateString('es-MX',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</p></div><div class="space-y-2"><div class="card flex justify-between"><span style="color:var(--tx3)">Ventas</span><span class="font-bold font-mono" style="color:var(--ac)">${this.fmt(totalVentas)}</span></div><div class="card flex justify-between"><span style="color:var(--tx3)">Compras (Costo)</span><span class="font-bold font-mono" style="color:var(--dn)">${this.fmt(totalCompras)}</span></div><div class="card flex justify-between"><span style="color:var(--tx3)">Utilidad</span><span class="font-bold font-mono" style="color:var(--yw)">${this.fmt(totalUtilidad)}</span></div><div class="card flex justify-between"><span style="color:var(--tx3)">No. de Tickets</span><span class="font-bold font-mono" style="color:var(--bl)">${numTickets}</span></div><div class="card flex justify-between"><span style="color:var(--tx3)">Mermas</span><span class="font-bold font-mono" style="color:var(--dn)">${this.fmt(totalMermas)}</span></div></div><button onclick="App.closeModal();App.navigate('owner')" class="btn w-full py-3 font-bold rounded-xl mt-4" style="background:var(--ac);color:#fff"><i class="fas fa-check mr-2"></i>Listo</button>`);
+    this.toast('Cierre de día registrado');
+  },
+  printClosing(){const rows=this.db.closings.slice(-15).reverse().map(c=>`<tr><td>${this.fmtDateShort(c.date)}</td><td>${this.fmt(c.totalVentas)}</td><td>${this.fmt(c.totalCompras)}</td><td>${this.fmt(c.totalUtilidad)}</td><td>${c.numTickets}</td><td>${this.fmt(c.totalMermas)}</td></tr>`).join('');this.browserPrint(`<h2>Historial de Cierres - ${this.db.businessName}</h2><table border="1" cellpadding="4" style="border-collapse:collapse;width:100%;font-size:10px"><tr><th>Fecha</th><th>Ventas</th><th>Compras</th><th>Utilidad</th><th>Tickets</th><th>Mermas</th></tr>${rows}</table>`)},
+
+  // Cambio de PINs
+  changePin(){
+    const cur=document.getElementById('oCurPin').value;const nw=document.getElementById('oNewPin').value;const conf=document.getElementById('oConfPin').value;
+    if(cur!==this.db.pin){this.toast('PIN actual incorrecto','error');return}
+    if(nw.length<4){this.toast('El PIN debe tener al menos 4 dígitos','error');return}
+    if(nw!==conf){this.toast('Los PINs no coinciden','error');return}
+    this.db.pin=nw;this.save();this.toast('PIN de acceso actualizado');
+    document.getElementById('oCurPin').value='';document.getElementById('oNewPin').value='';document.getElementById('oConfPin').value='';
+  },
+  changeOwnerPin(){
+    const cur=document.getElementById('oCurOwnerPin').value;const nw=document.getElementById('oNewOwnerPin').value;const conf=document.getElementById('oConfOwnerPin').value;
+    if(cur!==this.db.ownerPin){this.toast('PIN de dueño actual incorrecto','error');return}
+    if(nw.length<4){this.toast('El PIN debe tener al menos 4 dígitos','error');return}
+    if(nw!==conf){this.toast('Los PINs no coinciden','error');return}
+    this.db.ownerPin=nw;this.save();this.toast('PIN de dueño actualizado');
+    document.getElementById('oCurOwnerPin').value='';document.getElementById('oNewOwnerPin').value='';document.getElementById('oConfOwnerPin').value='';
+  },
+
+  // REINICIO DEL SISTEMA
+  resetSystem(){
+    this.openModal(`
+      <div class="text-center mb-4"><i class="fas fa-exclamation-triangle text-5xl" style="color:var(--dn)"></i><h3 class="text-xl font-bold mt-3" style="color:var(--dn)">Reiniciar Todo el Sistema</h3></div>
+      <div class="card mb-4" style="border-color:var(--dn);background:var(--dnbg)">
+        <p class="text-sm font-bold mb-2" style="color:var(--dn)">Se eliminarán TODOS los datos:</p>
+        <ul class="text-xs space-y-1" style="color:var(--tx2)">
+          <li><i class="fas fa-times mr-1" style="color:var(--dn)"></i>Todos los productos</li>
+          <li><i class="fas fa-times mr-1" style="color:var(--dn)"></i>Todas las ventas y tickets</li>
+          <li><i class="fas fa-times mr-1" style="color:var(--dn)"></i>Todos los proveedores</li>
+          <li><i class="fas fa-times mr-1" style="color:var(--dn)"></i>Todas las mermas</li>
+          <li><i class="fas fa-times mr-1" style="color:var(--dn)"></i>Todos los cierres de día</li>
+          <li><i class="fas fa-times mr-1" style="color:var(--dn)"></i>Categorías personalizadas</li>
+        </ul>
+        <p class="text-xs mt-2 font-bold" style="color:var(--yw)"><i class="fas fa-info-circle mr-1"></i>Se conservarán los PINs de acceso y de dueño.</p>
+      </div>
+      <p class="text-sm text-center mb-4 font-bold" style="color:var(--tx)">Escribe <span style="color:var(--dn)">REINICIAR</span> para confirmar:</p>
+      <input id="resetConfirm" class="inp text-center font-mono text-lg mb-4" placeholder="Escribe REINICIAR">
+      <div class="grid grid-cols-2 gap-3">
+        <button onclick="App.executeReset()" class="btn py-3 font-bold rounded-xl" style="background:var(--dn);color:#fff"><i class="fas fa-trash-alt mr-2"></i>REINICIAR</button>
+        <button onclick="App.closeModal()" class="btn py-3 font-bold rounded-xl" style="background:var(--bg5);color:var(--tx)">Cancelar</button>
+      </div>
+    `);
+  },
+  executeReset(){
+    const confirm=document.getElementById('resetConfirm').value.trim();
+    if(confirm!=='REINICIAR'){this.toast('Escribe REINICIAR para confirmar','error');return}
+    const savedPin=this.db.pin;const savedOwnerPin=this.db.ownerPin;const savedTheme=this.db.theme;const savedBiz=this.db.businessName;
+    this.db=this.defaultDB();this.db.pin=savedPin;this.db.ownerPin=savedOwnerPin;this.db.theme=savedTheme;this.db.businessName=savedBiz;
+    this.save();this.closeModal();this.ownerVerified=false;this.cart=[];this.navigate('owner');this.toast('Sistema reiniciado completamente','warning');
+  },
+
+  // MERMAS
+  render_shrinkage(){const items=this.db.shrinkage.slice(-20).reverse().map(sh=>`<div class="card mb-2"><div class="flex items-center justify-between"><div><p class="text-sm font-bold" style="color:var(--tx)">${sh.productName}</p><p class="text-xs" style="color:var(--tx3)">${this.fmtDate(sh.date)}${sh.reason?' · '+sh.reason:''}</p></div><div class="text-right"><p class="text-sm font-mono" style="color:var(--dn)">-${sh.quantity} uds</p><p class="text-xs" style="color:var(--tx3)">Costo: ${this.fmt(sh.costPrice)} | Venta: ${this.fmt(sh.salePrice)}</p></div></div></div>`).join('');return `<div class="space-y-3"><button onclick="App.addShrinkage()" class="btn w-full py-3 font-bold rounded-xl" style="background:var(--dnbg);color:var(--dn)"><i class="fas fa-plus mr-2"></i>Registrar Merma</button><div class="flex gap-2"><div class="flex-1 relative"><input id="shrinkSearch" class="inp pr-10" placeholder="Buscar en mermas..."><button onclick="App.openScanner(code=>{document.getElementById('shrinkSearch').value=code})" class="absolute right-2 top-1/2 -translate-y-1/2" style="color:var(--ac)"><i class="fas fa-barcode"></i></button></div><button onclick="App.printShrinkage()" class="btn px-3 rounded-xl" style="background:var(--bg5);color:var(--tx)"><i class="fas fa-print"></i></button></div><div id="shrinkList">${items||`<p class="text-center py-8" style="color:var(--tx4)">Sin mermas</p>`}</div></div>`},
+  addShrinkage(){this.openModal(`<h3 class="font-bold text-lg mb-4" style="color:var(--tx)">Registrar Merma</h3><div class="space-y-3"><div><label class="text-xs" style="color:var(--tx3)">Producto</label><select id="shProduct" class="inp" onchange="App.fillShrinkPrices()"><option value="">Seleccionar producto</option>${this.db.products.map(p=>`<option value="${p.id}">${p.name} (Stock: ${p.currentStock})</option>`).join('')}</select></div><div class="grid grid-cols-2 gap-3"><div><label class="text-xs" style="color:var(--tx3)">Cantidad</label><input id="shQty" class="inp" type="number" min="1" value="1"></div><div><label class="text-xs" style="color:var(--tx3)">Motivo</label><input id="shReason" class="inp" placeholder="Caducado, roto..."></div></div><div class="grid grid-cols-2 gap-3"><div><label class="text-xs" style="color:var(--tx3)">Precio costo</label><input id="shCost" class="inp" type="number" step="0.01" readonly></div><div><label class="text-xs" style="color:var(--tx3)">Precio venta</label><input id="shSale" class="inp" type="number" step="0.01" readonly></div></div><div><label class="text-xs" style="color:var(--tx3)">Stock actual</label><input id="shStock" class="inp" type="number" readonly></div><p class="text-xs" style="color:var(--tx3)">Se descontará del inventario.</p><button onclick="App.saveShrinkage()" class="btn w-full py-3 font-bold rounded-xl" style="background:var(--dn);color:#fff"><i class="fas fa-save mr-2"></i>Registrar Merma</button></div>`)},
+  fillShrinkPrices(){const p=this.db.products.find(pr=>pr.id===document.getElementById('shProduct').value);if(p){document.getElementById('shCost').value=p.purchasePrice;document.getElementById('shSale').value=p.salePrice;document.getElementById('shStock').value=p.currentStock}},
+  saveShrinkage(){const pid=document.getElementById('shProduct').value;const p=this.db.products.find(pr=>pr.id===pid);if(!p){this.toast('Selecciona producto','error');return}const qty=parseInt(document.getElementById('shQty').value)||0;if(qty<=0){this.toast('Cantidad inválida','error');return}this.db.shrinkage.push({id:this.genId(),productId:pid,productName:p.name,quantity:qty,reason:document.getElementById('shReason').value.trim(),costPrice:p.purchasePrice,salePrice:p.salePrice,date:new Date().toISOString()});p.currentStock=Math.max(0,p.currentStock-qty);this.save();this.closeModal();this.navigate('shrinkage');this.toast('Merma registrada y stock ajustado')},
+  printShrinkage(){const rows=this.db.shrinkage.slice(-50).map(sh=>`<tr><td>${sh.productName}</td><td>${sh.quantity}</td><td>${this.fmt(sh.costPrice)}</td><td>${this.fmt(sh.salePrice)}</td><td>${sh.reason||'-'}</td><td>${this.fmtDate(sh.date)}</td></tr>`).join('');this.browserPrint(`<h2>Reporte de Mermas - ${this.db.businessName}</h2><table border="1" cellpadding="4" style="border-collapse:collapse;width:100%;font-size:10px"><tr><th>Producto</th><th>Cant</th><th>Costo</th><th>Venta</th><th>Motivo</th><th>Fecha</th></tr>${rows}</table>`)},
+
+  // HISTÓRICO
+  render_history(){return `<div class="space-y-3"><div class="grid grid-cols-2 gap-3"><div><label class="text-xs" style="color:var(--tx3)">Fecha inicio</label><input id="histFrom" type="date" class="inp"></div><div><label class="text-xs" style="color:var(--tx3)">Fecha fin</label><input id="histTo" type="date" class="inp"></div></div><button onclick="App.filterHistory()" class="btn w-full py-2 font-bold rounded-xl" style="background:var(--ac);color:#fff"><i class="fas fa-search mr-2"></i>Consultar</button><div id="histResults"></div></div>`},
+  filterHistory(){
+    const from=document.getElementById('histFrom').value;const to=document.getElementById('histTo').value;
+    let sales=this.db.sales.filter(s=>s.status==='completed');if(from)sales=sales.filter(s=>s.date>=from);if(to)sales=sales.filter(s=>s.date<=to+'T23:59:59');
+    const tv=sales.reduce((s,sa)=>s+sa.total,0);const tc=sales.reduce((s,sa)=>s+this.getSaleCost(sa),0);const tu=tv-tc;const nt=sales.length;
+    let closings=this.db.closings;if(from)closings=closings.filter(c=>c.date>=from);if(to)closings=closings.filter(c=>c.date<=to+'T23:59:59');
+    document.getElementById('histResults').innerHTML=`
+      <div class="grid grid-cols-2 gap-2 mt-3"><div class="card text-center"><p class="text-xs" style="color:var(--tx3)">Ventas</p><p class="font-bold font-mono" style="color:var(--ac)">${this.fmt(tv)}</p></div><div class="card text-center"><p class="text-xs" style="color:var(--tx3)">Compras (Costo)</p><p class="font-bold font-mono" style="color:var(--dn)">${this.fmt(tc)}</p></div><div class="card text-center"><p class="text-xs" style="color:var(--tx3)">Utilidad</p><p class="font-bold font-mono" style="color:var(--yw)">${this.fmt(tu)}</p></div><div class="card text-center"><p class="text-xs" style="color:var(--tx3)">No. de Tickets</p><p class="font-bold font-mono" style="color:var(--bl)">${nt}</p></div></div>
+      ${closings.length?`<p class="text-sm font-bold mt-4 mb-2" style="color:var(--tx)"><i class="fas fa-calendar-check mr-1" style="color:var(--yw)"></i>Cierres de Día</p><div>${closings.map(c=>`<div class="card mb-2"><p class="text-xs font-bold mb-1" style="color:var(--tx)">${this.fmtDate(c.date)}</p><div class="grid grid-cols-2 gap-1 text-xs"><span style="color:var(--tx3)">Ventas: <b style="color:var(--ac)">${this.fmt(c.totalVentas)}</b></span><span style="color:var(--tx3)">Compras: <b style="color:var(--dn)">${this.fmt(c.totalCompras)}</b></span><span style="color:var(--tx3)">Utilidad: <b style="color:var(--yw)">${this.fmt(c.totalUtilidad)}</b></span><span style="color:var(--tx3)">Tickets: <b style="color:var(--bl)">${c.numTickets}</b></span></div></div>`).join('')}</div>`:''}
+      <p class="text-xs mt-3 mb-2" style="color:var(--tx3)">${nt} tickets individuales</p>
+      <div>${sales.slice(-20).reverse().map(s=>`<div class="card mb-2"><div class="flex items-center justify-between"><div><p class="text-sm font-bold" style="color:var(--tx)">${s.ticketNumber}</p><p class="text-xs" style="color:var(--tx3)">${this.fmtDate(s.date)}</p></div><div class="text-right"><p class="font-bold font-mono" style="color:var(--ac)">${this.fmt(s.total)}</p><p class="text-xs" style="color:var(--tx3)">Costo: ${this.fmt(this.getSaleCost(s))}</p></div></div></div>`).join('')}</div>
+      <button onclick="App.printHistory()" class="btn w-full py-2 font-bold rounded-xl mt-3" style="background:var(--bg5);color:var(--tx)"><i class="fas fa-print mr-2"></i>Imprimir Reporte</button>`;
+  },
+  printHistory(){const from=document.getElementById('histFrom')?.value;const to=document.getElementById('histTo')?.value;let sales=this.db.sales.filter(s=>s.status==='completed');if(from)sales=sales.filter(s=>s.date>=from);if(to)sales=sales.filter(s=>s.date<=to+'T23:59:59');const tv=sales.reduce((s,sa)=>s+sa.total,0);const tc=sales.reduce((s,sa)=>s+this.getSaleCost(sa),0);const rows=sales.map(s=>`<tr><td>${s.ticketNumber}</td><td>${this.fmtDate(s.date)}</td><td>${this.fmt(this.getSaleCost(s))}</td><td>${this.fmt(s.total)}</td><td>${this.fmt(s.total-this.getSaleCost(s))}</td></tr>`).join('');this.browserPrint(`<h2>Reporte Historico - ${this.db.businessName}</h2><p>Del: ${from||'Inicio'} Al: ${to||'Hoy'}</p><p><b>Ventas:</b> ${this.fmt(tv)} | <b>Compras:</b> ${this.fmt(tc)} | <b>Utilidad:</b> ${this.fmt(tv-tc)} | <b>Tickets:</b> ${sales.length}</p><table border="1" cellpadding="4" style="border-collapse:collapse;width:100%;font-size:10px"><tr><th>Ticket</th><th>Fecha</th><th>Compras</th><th>Ventas</th><th>Utilidad</th></tr>${rows}</table>`)},
+
+  init(){this.load();this.applyTheme();document.getElementById('pinInput').addEventListener('keypress',e=>{if(e.key==='Enter')this.login()})}
+};
+document.addEventListener('DOMContentLoaded',()=>App.init());
+</script>
+</body>
+</html>
